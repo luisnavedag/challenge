@@ -5,6 +5,10 @@ from rest_framework import exceptions as rest_exceptions, response, decorators a
 from rest_framework_simplejwt import tokens, views as jwt_views, serializers as jwt_serializers, exceptions as jwt_exceptions
 from user import serializers, models
 import stripe
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from drf_yasg import openapi
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 prices = {
@@ -25,6 +29,34 @@ def get_user_tokens(user):
     }
 
 
+@swagger_auto_schema(
+    method="post",
+    operation_summary="Login",
+    operation_description="Login with email and password",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['email', 'password'],
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING),
+            'password': openapi.Schema(type=openapi.TYPE_STRING),
+        },
+    ),
+    responses={
+        200: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'refresh_token': openapi.Schema(type=openapi.TYPE_STRING),
+                'access_token': openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+        401: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'detail': openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+    },
+)
 @rest_decorators.api_view(["POST"])
 @rest_decorators.permission_classes([])
 def loginView(request):
@@ -64,6 +96,35 @@ def loginView(request):
         "Email or Password is incorrect!")
 
 
+
+@swagger_auto_schema(
+    method="post",
+    operation_summary="Register",
+    operation_description="Register a new user",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['first_name', 'last_name', 'email', 'password', 'password2'],
+        properties={
+            'first_name': openapi.Schema(type=openapi.TYPE_STRING),
+            'last_name': openapi.Schema(type=openapi.TYPE_STRING),
+            'email': openapi.Schema(type=openapi.TYPE_STRING),
+            'password': openapi.Schema(type=openapi.TYPE_STRING),
+            'password2': openapi.Schema(type=openapi.TYPE_STRING),
+        },
+    ),
+    responses={
+        200: openapi.Schema(
+            type=openapi.TYPE_STRING,
+            example="Registered!",
+        ),
+        400: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'detail': openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+    },
+)
 @rest_decorators.api_view(["POST"])
 @rest_decorators.permission_classes([])
 def registerView(request):
@@ -77,6 +138,24 @@ def registerView(request):
     return rest_exceptions.AuthenticationFailed("Invalid credentials!")
 
 
+
+@swagger_auto_schema(
+    method="post",
+    operation_summary="Logout",
+    operation_description="Logout the current user",
+    responses={
+        200: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={},
+        ),
+        400: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'detail': openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+    },
+)
 @rest_decorators.api_view(['POST'])
 @rest_decorators.permission_classes([rest_permissions.IsAuthenticated])
 def logoutView(request):
@@ -96,7 +175,6 @@ def logoutView(request):
         return res
     except:
         raise rest_exceptions.ParseError("Invalid token")
-
 
 class CookieTokenRefreshSerializer(jwt_serializers.TokenRefreshSerializer):
     refresh = None
@@ -129,6 +207,30 @@ class CookieTokenRefreshView(jwt_views.TokenRefreshView):
         return super().finalize_response(request, response, *args, **kwargs)
 
 
+
+@swagger_auto_schema(
+    method="get",
+    operation_summary="Get User",
+    operation_description="Retrieve the current user's information",
+    responses={
+        200: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'email': openapi.Schema(type=openapi.TYPE_STRING),
+                'first_name': openapi.Schema(type=openapi.TYPE_STRING),
+                'last_name': openapi.Schema(type=openapi.TYPE_STRING),
+                'created_at': openapi.Schema(type=openapi.TYPE_STRING),
+                'updated_at': openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+        404: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'detail': openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+    },
+)
 @rest_decorators.api_view(["GET"])
 @rest_decorators.permission_classes([rest_permissions.IsAuthenticated])
 def user(request):
@@ -141,6 +243,36 @@ def user(request):
     return response.Response(serializer.data)
 
 
+
+@swagger_auto_schema(
+    method="get",
+    operation_summary="Get Subscriptions",
+    operation_description="Retrieve the current user's active subscriptions",
+    responses={
+        200: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'subscriptions': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'id': openapi.Schema(type=openapi.TYPE_STRING),
+                            'start_date': openapi.Schema(type=openapi.TYPE_STRING),
+                            'plan': openapi.Schema(type=openapi.TYPE_STRING),
+                        },
+                    ),
+                ),
+            },
+        ),
+        404: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'detail': openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+    },
+)
 @rest_decorators.api_view(["GET"])
 @rest_decorators.permission_classes([rest_permissions.IsAuthenticated])
 def getSubscriptions(request):
